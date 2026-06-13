@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#0e1116" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <title>WaveGen — 共振サウンドジェネレーター</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" type="image/svg+xml" href="icons/icon.svg" />
+  <link rel="apple-touch-icon" href="icons/icon.svg" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">🎻 WaveGen</div>
+    <select id="profileSelect" class="profile-select" aria-label="プロファイル選択"></select>
+  </header>
+
+  <main>
+    <section class="display">
+      <div class="freq">
+        <span id="freqValue">440.0</span><span class="unit">Hz</span>
+      </div>
+      <div id="noteLabel" class="note">A4 +0¢</div>
+      <div class="meta">
+        <span id="rangeLabel">範囲 180–700 Hz</span>
+        <span id="micLevel" class="mic-level off">マイク OFF</span>
+      </div>
+    </section>
+
+    <section class="pad" id="pad" aria-label="周波数スワイプパッド">
+      <canvas id="viz"></canvas>
+      <div class="pad-hint">⟷ 周波数 ・ ⇅ 音量 ・ ダブルタップで再生/停止 ・ 長押しでマーク</div>
+      <div class="resonance-strip" id="resonanceStrip"></div>
+    </section>
+
+    <div class="transport">
+      <button id="playBtn" class="btn primary">▶ 再生</button>
+      <button id="markBtn" class="btn">🚩 マーク</button>
+      <button id="fineBtn" class="btn toggle">微調整</button>
+      <button id="snapBtn" class="btn toggle">音階スナップ</button>
+    </div>
+
+    <section class="range card">
+      <div class="row between">
+        <label>周波数レンジ (Hz)</label>
+        <div class="range-inputs">
+          <input id="rangeMin" type="number" inputmode="decimal" step="1" />
+          <span>–</span>
+          <input id="rangeMax" type="number" inputmode="decimal" step="1" />
+        </div>
+      </div>
+      <input id="freqSlider" type="range" min="0" max="1000" value="500" />
+      <div class="presets" id="rangePresets"></div>
+      <div class="nudge" id="nudgeRow">
+        <button class="chip" data-cents="-100">−100¢</button>
+        <button class="chip" data-cents="-10">−10¢</button>
+        <button class="chip" data-cents="-1">−1¢</button>
+        <button class="chip" data-cents="1">+1¢</button>
+        <button class="chip" data-cents="10">+10¢</button>
+        <button class="chip" data-cents="100">+100¢</button>
+      </div>
+    </section>
+
+    <details class="panel" open>
+      <summary>🎛 シンセサイザー</summary>
+      <div class="panel-body">
+        <label class="field-label">波形</label>
+        <div class="waveforms" id="waveforms">
+          <button class="chip" data-wave="sine">サイン</button>
+          <button class="chip" data-wave="triangle">三角</button>
+          <button class="chip" data-wave="sawtooth">ノコギリ</button>
+          <button class="chip" data-wave="square">矩形</button>
+          <button class="chip" data-wave="organ">オルガン</button>
+          <button class="chip" data-wave="strings">ストリングス</button>
+          <button class="chip" data-wave="hollow">ホロウ</button>
+        </div>
+
+        <div class="slider-field">
+          <label>音量 <span id="volVal">40%</span></label>
+          <input id="volume" type="range" min="0" max="100" value="40" />
+        </div>
+
+        <div class="slider-field">
+          <label>ビブラート速度 <span id="vibRateVal">5.0 Hz</span></label>
+          <input id="vibRate" type="range" min="0.1" max="12" step="0.1" value="5" />
+        </div>
+        <div class="slider-field">
+          <label>ビブラート深さ <span id="vibDepthVal">0¢</span></label>
+          <input id="vibDepth" type="range" min="0" max="100" step="1" value="0" />
+        </div>
+
+        <div class="slider-field">
+          <label>トレモロ速度 <span id="tremRateVal">4.0 Hz</span></label>
+          <input id="tremRate" type="range" min="0.1" max="14" step="0.1" value="4" />
+        </div>
+        <div class="slider-field">
+          <label>トレモロ深さ <span id="tremAmtVal">0%</span></label>
+          <input id="tremAmt" type="range" min="0" max="100" step="1" value="0" />
+        </div>
+
+        <div class="slider-field">
+          <label>デチューン (うなり検出) <span id="detuneVal">0¢</span></label>
+          <input id="detune" type="range" min="0" max="40" step="1" value="0" />
+        </div>
+
+        <div class="slider-field">
+          <label>基準ピッチ A4 <span id="a4Val">440 Hz</span></label>
+          <input id="a4" type="range" min="392" max="466" step="1" value="440" />
+        </div>
+      </div>
+    </details>
+
+    <details class="panel">
+      <summary>📈 スイープ & 共振測定</summary>
+      <div class="panel-body">
+        <p class="hint">
+          マイクをONにすると、発信した音に対する楽器の応答（共振）を測定できます。
+          スイープでレスポンスカーブを記録し、ピークを共振点として検出します。
+        </p>
+        <button id="micBtn" class="btn">🎤 マイクをON</button>
+
+        <div class="row sweep-config">
+          <div class="mini-field">
+            <label>開始 Hz</label>
+            <input id="sweepFrom" type="number" inputmode="decimal" />
+          </div>
+          <div class="mini-field">
+            <label>終了 Hz</label>
+            <input id="sweepTo" type="number" inputmode="decimal" />
+          </div>
+          <div class="mini-field">
+            <label>時間 秒</label>
+            <input id="sweepDur" type="number" inputmode="decimal" value="8" />
+          </div>
+        </div>
+        <div class="row">
+          <button id="sweepBtn" class="btn primary">▶ スイープ開始</button>
+          <button id="sweepUseRange" class="btn">レンジを使用</button>
+        </div>
+
+        <canvas id="responseCurve" class="response-curve"></canvas>
+        <div class="row">
+          <button id="detectPeaksBtn" class="btn">⛰ ピーク検出してマーク</button>
+          <button id="clearCurveBtn" class="btn">クリア</button>
+        </div>
+        <div id="peakList" class="peak-list"></div>
+      </div>
+    </details>
+
+    <details class="panel">
+      <summary>🚩 共振マーク <span id="markCount" class="badge">0</span></summary>
+      <div class="panel-body">
+        <div id="markList" class="mark-list"></div>
+        <p class="hint" id="markEmpty">まだマークがありません。長押しまたは「マーク」ボタンで現在の周波数を記録します。</p>
+      </div>
+    </details>
+
+    <details class="panel">
+      <summary>💾 プロファイル</summary>
+      <div class="panel-body">
+        <div class="row">
+          <input id="profileName" type="text" placeholder="プロファイル名" />
+          <button id="renameBtn" class="btn">名前変更</button>
+        </div>
+        <div class="row">
+          <button id="newProfileBtn" class="btn primary">＋ 新規</button>
+          <button id="deleteProfileBtn" class="btn danger">削除</button>
+        </div>
+        <div class="row">
+          <button id="exportBtn" class="btn">エクスポート</button>
+          <button id="importBtn" class="btn">インポート</button>
+        </div>
+        <textarea id="ioArea" class="io-area" placeholder="エクスポート/インポート用 JSON"></textarea>
+      </div>
+    </details>
+
+    <footer class="foot">
+      <span id="installHint" class="hint">ヒント: ブラウザの「ホーム画面に追加」でアプリとして使えます（オフライン対応）。</span>
+    </footer>
+  </main>
+
+  <div id="toast" class="toast"></div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

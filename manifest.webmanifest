@@ -1,0 +1,20 @@
+{
+  "name": "WaveGen — 共振サウンドジェネレーター",
+  "short_name": "WaveGen",
+  "description": "スワイプで周波数を操る音波発信器。バイオリンの共振点測定・マーク・シンセサイザー機能付き。",
+  "lang": "ja",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0e1116",
+  "theme_color": "#0e1116",
+  "icons": [
+    {
+      "src": "icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
